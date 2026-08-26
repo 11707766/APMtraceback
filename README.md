@@ -29,7 +29,9 @@ To open the app from a phone on the same Wi-Fi network, keep the server running 
 
 ## Deploy for any network
 
-The included `render.yaml` deploys the app with Gunicorn, HTTPS session cookies, and a persistent SQLite disk. In Render, create a new Blueprint from this GitHub repository. Render supplies a public address similar to `https://apmcontrol.onrender.com`.
+The included `render.yaml` deploys the app on Render's free compute plan with Gunicorn and HTTPS session cookies. In Render, create a new Blueprint from this GitHub repository. Render supplies a public address similar to `https://apmcontrol.onrender.com`.
+
+The free service uses ephemeral SQLite storage, so accounts and requests can reset when the service restarts or redeploys. For durable production data, upgrade to a persistent disk and set `DATABASE_PATH` to its mount path, or migrate the application to a managed database.
 
 A branded address such as `https://apmcontrol.com` requires registering that domain and connecting it to the deployed service. A single-label address such as `http://ApmControl` is only possible on a private network with custom DNS and cannot be a global mobile link.
 
