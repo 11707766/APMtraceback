@@ -1,8 +1,8 @@
 {% extends "auth_base.html" %}
-{% block title %}Sign in · AMP{% endblock %}
+{% block title %}Sign in · AMP Change Control{% endblock %}
 {% block auth_content %}
 <p class="eyebrow">Welcome back</p>
-<h2>Sign in to AMP</h2>
+<h2>Sign in to AMP Change Control</h2>
 <p class="muted">Use your registered project credentials.</p>
 <form method="post" class="form-stack">
   <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
@@ -11,5 +11,5 @@
   <div class="form-row between"><label class="check"><input type="checkbox" name="remember"> Remember me</label><a href="{{ url_for('forgot_password') }}">Forgot password?</a></div>
   <button class="button primary wide" type="submit">Sign in <span>→</span></button>
 </form>
-<p class="auth-switch">New to AMP? <a href="{{ url_for('register') }}">Create an account</a></p>
+<p class="auth-switch">New to AMP Change Control? <a href="{{ url_for('register') }}">Create an account</a></p>
 {% endblock %}
