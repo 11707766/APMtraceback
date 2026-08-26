@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{% if item %}Edit {{ item['requirement_signal_id'] }}{% else %}New request{% endif %} · AMP{% endblock %}
+{% block content %}
+<main class="page narrow">
+  <a class="back" href="{{ url_for('dashboard') }}">← Back to requests</a>
+  <div class="page-heading"><div><p class="eyebrow">Developer submission</p><h1>{% if item %}Edit change request{% else %}New change request{% endif %}</h1><p class="muted">{% if item %}Update the request details. The tester will be notified and the status will return to New.{% else %}Record the change and assign the responsible tester.{% endif %}</p></div><span class="step">01 / 01</span></div>
+  <form method="post" class="request-form">
+    <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
+    <section><div class="section-number">01</div><div class="form-content"><h2>Change reference</h2><p>Identify the affected requirement or signal.</p><div class="field-grid">
+      <label>Requirement / Signal ID<input name="requirement_signal_id" value="{{ item['requirement_signal_id'] if item else '' }}" required placeholder="e.g. REQ-1042 or SIG-CAN-08"></label>
+      <label>Function name<input name="function_name" value="{{ item['function_name'] if item else '' }}" required placeholder="e.g. Battery state monitoring"></label>
+    </div><div class="comparison-inputs">
+      <label class="value-field previous">Previous requirement / signal<textarea name="previous_value" rows="6" required placeholder="Paste the current value, definition, limits, or acceptance criteria...">{{ item['previous_value'] if item else '' }}</textarea></label>
+      <div class="compare-arrow" aria-hidden="true">→</div>
+      <label class="value-field updated">New updated requirement / signal<textarea name="new_value" rows="6" required placeholder="Paste the proposed updated value, definition, limits, or acceptance criteria...">{{ item['new_value'] if item else '' }}</textarea></label>
+    </div></div></section>
+    <section><div class="section-number">02</div><div class="form-content"><h2>Tester assignment</h2><p>They will see the request at login and receive an Outlook notification.</p><div class="field-grid">
+      <label>Tester name<input name="tester_name" value="{{ item['tester_name'] if item else '' }}" list="tester-names" required placeholder="Full name"><datalist id="tester-names">{% for tester in testers %}<option value="{{ tester['name'] }}">{% endfor %}</datalist></label>
+      <label>Tester email<input type="email" name="tester_email" value="{{ item['tester_email'] if item else '' }}" list="tester-emails" required placeholder="tester@company.com"><datalist id="tester-emails">{% for tester in testers %}<option value="{{ tester['email'] }}">{% endfor %}</datalist></label>
+    </div></div></section>
+    <section><div class="section-number">03</div><div class="form-content"><h2>Change context</h2><p>Give the tester enough information to assess the impact.</p>
+      <label>Reason for change<textarea name="reason" rows="5" required placeholder="Describe what changed, why it changed, and the expected behavior...">{{ item['reason'] if item else '' }}</textarea></label>
+      <label>Priority<div class="priority-options">{% for priority in ['Low', 'Medium', 'High', 'Critical'] %}<label><input type="radio" name="priority" value="{{ priority }}" {% if (item and priority == item['priority']) or (not item and priority == 'Medium') %}checked{% endif %}><span>{{ priority }}</span></label>{% endfor %}</div></label>
+    </div></section>
+    <div class="form-actions"><a class="button secondary" href="{{ url_for('request_detail', request_id=item['id']) if item else url_for('dashboard') }}">Cancel</a><button class="button primary" type="submit">{% if item %}Save changes & notify{% else %}Submit & notify tester{% endif %} <span>→</span></button></div>
+  </form>
+</main>
+{% endblock %}

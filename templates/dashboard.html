@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · AMP{% endblock %}
+{% block content %}
+<main class="page">
+  <div class="page-heading dashboard-heading">
+    <div><p class="eyebrow">{{ g.user['role']|title }} workspace</p><h1>Change control overview</h1><p class="muted">{% if g.user['role'] == 'tester' %}Review and resolve requests assigned to {{ g.user['email'] }}.{% else %}Monitor requirement and signal changes from submission through validation.{% endif %}</p></div>
+    {% if g.user['role'] == 'developer' %}<a class="button primary" href="{{ url_for('new_request') }}"><span class="plus">+</span> New request</a>{% endif %}
+  </div>
+  <section class="metrics" aria-label="Request summary">
+    <div class="metric primary-metric"><span class="metric-icon">#</span><div><small>Total requests</small><strong>{{ requests|length }}</strong><em>All tracked changes</em></div></div>
+    <div class="metric"><span class="metric-icon new-icon">N</span><div><small>Awaiting review</small><strong>{{ counts['New'] }}</strong><em>New submissions</em></div></div>
+    <div class="metric"><span class="metric-icon review-icon">↻</span><div><small>In review</small><strong>{{ counts['In Review'] }}</strong><em>Testing in progress</em></div></div>
+    <div class="metric"><span class="metric-icon approved-icon">✓</span><div><small>Approved</small><strong>{{ counts['Approved'] }}</strong><em>Validated changes</em></div></div>
+  </section>
+  <section class="table-section">
+    <div class="section-title"><div><p class="eyebrow">Live register</p><h2>Recent change requests</h2></div><span class="record-count">{{ requests|length }} records</span></div>
+    {% if requests %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Function</th><th>{% if g.user['role'] == 'tester' %}Developer{% else %}Tester{% endif %}</th><th>Priority</th><th>Status</th><th>Created</th><th></th></tr></thead>
+      <tbody>{% for item in requests %}<tr>
+        <td><div class="request-id"><span>Δ</span><strong>{{ item['requirement_signal_id'] }}</strong></div></td><td><div class="function-cell"><strong>{{ item['function_name'] }}</strong><small>{{ item['reason']|truncate(54) }}</small></div></td><td>{% if g.user['role'] == 'tester' %}{{ item['developer_name'] }}{% else %}{{ item['tester_name'] }}{% endif %}</td>
+        <td><span class="priority {{ item['priority']|lower }}">{{ item['priority'] }}</span></td><td><span class="status {{ item['status']|lower|replace(' ', '-') }}"><i></i>{{ item['status'] }}</span></td><td>{{ item['created_at'][:10] }}</td>
+        <td><a class="row-link" aria-label="Open {{ item['requirement_signal_id'] }}" href="{{ url_for('request_detail', request_id=item['id']) }}">→</a></td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<div class="empty"><span>↗</span><h3>No requests yet</h3><p>{% if g.user['role'] == 'developer' %}Log the next requirement or signal change to start its tester handoff.{% else %}Assigned requests will appear here automatically.{% endif %}</p></div>{% endif %}
+  </section>
+</main>
+{% endblock %}
