@@ -23,7 +23,7 @@
         <td><a class="row-link" aria-label="Open {{ item['requirement_signal_id'] }}" href="{{ url_for('request_detail', request_id=item['id']) }}">→</a></td>
       </tr>{% endfor %}</tbody>
     </table></div>
-    {% else %}<div class="empty"><span>↗</span><h3>No requests yet</h3><p>{% if g.user['role'] == 'developer' %}Log the next requirement or signal change to start its tester handoff.{% else %}Assigned requests will appear here automatically.{% endif %}</p></div>{% endif %}
+    {% else %}<div class="empty"><span>↗</span><h3>No requests yet</h3><p>{% if g.user['role'] == 'developer' %}Log the next requirement or signal change to start its tester handoff.{% else %}Organization requests will appear here automatically.{% endif %}</p></div>{% endif %}
   </section>
 </main>
 {% endblock %}

@@ -273,7 +273,9 @@ def forgot_password():
                 send_sms(lookup_value, message)
             else:
                 send_email(lookup_value, "Reset your APM Change Control password", message)
-        flash("If that account exists, password reset instructions are ready.", "success")
+            flash("Password reset instructions are ready.", "success")
+        else:
+            flash("Account is not registered.", "error")
     return render_template("forgot_password.html")
 
 

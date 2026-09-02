@@ -104,9 +104,13 @@ class WorkflowTest(unittest.TestCase):
         reset_response = self.post("/forgot-password", {"identifier": "tester@example.com"})
         self.assertNotIn(b"Continue to password reset", reset_response.data)
         mobile_reset = self.post("/forgot-password", {"identifier": "+15557654321"})
-        self.assertIn(b"reset instructions are ready", mobile_reset.data)
+        self.assertIn(b"Password reset instructions are ready", mobile_reset.data)
+        unknown_reset = self.post("/forgot-password", {"identifier": "unknown@example.com"})
+        self.assertIn(b"Account is not registered", unknown_reset.data)
         with app.app_context():
-            reset = get_db().execute("SELECT token FROM password_resets").fetchone()
+            reset_count = get_db().execute("SELECT COUNT(*) FROM password_resets").fetchone()[0]
+            self.assertEqual(reset_count, 2)
+            reset = get_db().execute("SELECT token FROM password_resets LIMIT 1").fetchone()
         changed = self.post(f"/reset-password/{reset['token']}", {"password": "NewPassword123"})
         self.assertIn(b"Password updated", changed.data)
 
