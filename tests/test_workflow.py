@@ -15,6 +15,8 @@ class WorkflowTest(unittest.TestCase):
             SECRET_KEY="test-secret",
             SERVER_NAME="localhost",
             ADMIN_EMAILS=frozenset({"dev@example.com"}),
+            ADMIN_BOOTSTRAP_EMAIL="",
+            ADMIN_BOOTSTRAP_PASSWORD="",
         )
         with app.app_context():
             init_db()
@@ -59,6 +61,9 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"Password updated", changed_password.data)
         self.post("/logout", {})
         self.assertIn(b"Developer workspace", self.login("dev@example.com", "ChangedPassword123").data)
+        users_page = self.client.get("/admin/users")
+        self.assertIn(b"Registered users", users_page.data)
+        self.assertIn(b"tester@example.com", users_page.data)
         admin_reset = self.post("/admin/password-reset", {"email": "tester@example.com", "password": "TemporaryPassword123"})
         self.assertIn(b"Temporary password set", admin_reset.data)
         response = self.post(
@@ -109,6 +114,7 @@ class WorkflowTest(unittest.TestCase):
         observer_dashboard = self.login("observer@example.com")
         self.assertIn(b"SIG-CAN-08", observer_dashboard.data)
         self.assertEqual(self.client.get("/requests/1").status_code, 200)
+        self.assertEqual(self.client.get("/admin/users").status_code, 403)
         self.assertEqual(self.post("/admin/password-reset", {"email": "tester@example.com", "password": "AnotherPassword123"}, follow_redirects=False).status_code, 403)
 
         self.post("/logout", {})

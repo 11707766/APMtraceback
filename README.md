@@ -33,7 +33,7 @@ Copy `.env.example` to a new `.env` file. For reliable delivery on Render, set `
 
 ## Administrator password reset
 
-Set `ADMIN_EMAILS` to a comma-separated list of administrator work emails. After signing in, administrators can open the reset-user-password button in the header and set a temporary password for a registered user. The user then signs in and can change their own password from the dashboard.
+Set `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` as Render secrets to create or reset the first administrator account once. Use `ADMIN_EMAILS` for additional administrator work emails. After signing in, administrators can open Manage users from the header, see all developers and testers, and set a temporary password for any registered user. The user then signs in and can change their own password from the dashboard.
 
 ## Deploy for any network
 
