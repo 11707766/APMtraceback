@@ -30,19 +30,19 @@ class WorkflowTest(unittest.TestCase):
         data["csrf_token"] = self.csrf()
         return self.client.post(path, data=data, follow_redirects=follow_redirects)
 
-    def register(self, name, email, role, phone):
+    def register(self, name, email, role):
         return self.post(
             "/register",
-            {"name": name, "email": email, "phone": phone, "role": role, "password": "Password123"},
+            {"name": name, "email": email, "role": role, "password": "Password123"},
         )
 
     def login(self, email):
         return self.post("/login", {"email": email, "password": "Password123"})
 
     def test_complete_developer_to_tester_workflow(self):
-        self.assertIn(b"Account created", self.register("Dev User", "dev@example.com", "developer", "+15551234567").data)
-        self.register("Test User", "tester@example.com", "tester", "+15557654321")
-        self.register("Observer", "observer@example.com", "tester", "+15559876543")
+        self.assertIn(b"Account created", self.register("Dev User", "dev@example.com", "developer").data)
+        self.register("Test User", "tester@example.com", "tester")
+        self.register("Observer", "observer@example.com", "tester")
 
         self.assertIn(b"Developer workspace", self.login("dev@example.com").data)
         response = self.post(
@@ -101,15 +101,14 @@ class WorkflowTest(unittest.TestCase):
         self.assertNotIn(b"SIG-CAN-08</strong>", deleted.data)
 
         self.post("/logout", {})
-        reset_response = self.post("/forgot-password", {"identifier": "tester@example.com"})
+        reset_response = self.post("/forgot-password", {"email": "tester@example.com"})
         self.assertNotIn(b"Continue to password reset", reset_response.data)
-        mobile_reset = self.post("/forgot-password", {"identifier": "+15557654321"})
-        self.assertIn(b"Password reset instructions are ready", mobile_reset.data)
-        unknown_reset = self.post("/forgot-password", {"identifier": "unknown@example.com"})
+        self.assertIn(b"Password reset instructions are ready", reset_response.data)
+        unknown_reset = self.post("/forgot-password", {"email": "unknown@example.com"})
         self.assertIn(b"Account is not registered", unknown_reset.data)
         with app.app_context():
             reset_count = get_db().execute("SELECT COUNT(*) FROM password_resets").fetchone()[0]
-            self.assertEqual(reset_count, 2)
+            self.assertEqual(reset_count, 1)
             reset = get_db().execute("SELECT token FROM password_resets LIMIT 1").fetchone()
         changed = self.post(f"/reset-password/{reset['token']}", {"password": "NewPassword123"})
         self.assertIn(b"Password updated", changed.data)
