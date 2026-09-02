@@ -36,8 +36,8 @@ class WorkflowTest(unittest.TestCase):
             {"name": name, "email": email, "role": role, "password": "Password123"},
         )
 
-    def login(self, email):
-        return self.post("/login", {"email": email, "password": "Password123"})
+    def login(self, email, password="Password123"):
+        return self.post("/login", {"email": email, "password": password})
 
     def test_complete_developer_to_tester_workflow(self):
         self.assertIn(b"Account created", self.register("Dev User", "dev@example.com", "developer").data)
@@ -45,6 +45,10 @@ class WorkflowTest(unittest.TestCase):
         self.register("Observer", "observer@example.com", "tester")
 
         self.assertIn(b"Developer workspace", self.login("dev@example.com").data)
+        changed_password = self.post("/account/password", {"password": "ChangedPassword123"})
+        self.assertIn(b"Password updated", changed_password.data)
+        self.post("/logout", {})
+        self.assertIn(b"Developer workspace", self.login("dev@example.com", "ChangedPassword123").data)
         response = self.post(
             "/requests/new",
             {
@@ -95,7 +99,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual(self.client.get("/requests/1").status_code, 200)
 
         self.post("/logout", {})
-        self.login("dev@example.com")
+        self.login("dev@example.com", "ChangedPassword123")
         deleted = self.post("/requests/1/delete", {})
         self.assertIn(b"Request SIG-CAN-08 deleted", deleted.data)
         self.assertNotIn(b"SIG-CAN-08</strong>", deleted.data)

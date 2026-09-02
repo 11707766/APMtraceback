@@ -222,6 +222,22 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/account/password", methods=("GET", "POST"))
+@login_required
+def change_password():
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        if len(password) < 8:
+            flash("Password must be at least 8 characters.", "error")
+        else:
+            db = get_db()
+            db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(password), g.user["id"]))
+            db.commit()
+            flash("Password updated.", "success")
+            return redirect(url_for("dashboard"))
+    return render_template("change_password.html")
+
+
 @app.route("/forgot-password", methods=("GET", "POST"))
 def forgot_password():
     if request.method == "POST":
