@@ -2,6 +2,7 @@ import os
 import secrets
 import smtplib
 import sqlite3
+import re
 from datetime import UTC, datetime, timedelta
 from email.message import EmailMessage
 from functools import wraps
@@ -22,6 +23,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
+from twilio.rest import Client
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -63,6 +65,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            phone TEXT UNIQUE,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL CHECK (role IN ('developer', 'tester')),
             created_at TEXT NOT NULL
@@ -99,6 +102,10 @@ def init_db():
     for column in ("previous_value", "new_value"):
         if column not in request_columns:
             db.execute(f"ALTER TABLE change_requests ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
+    user_columns = {row["name"] for row in db.execute("PRAGMA table_info(users)")}
+    if "phone" not in user_columns:
+        db.execute("ALTER TABLE users ADD COLUMN phone TEXT")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_phone_unique ON users(phone) WHERE phone IS NOT NULL")
     db.commit()
 
 
@@ -143,6 +150,24 @@ def send_email(recipient, subject, body):
         return True, "Sent"
     except (OSError, smtplib.SMTPException) as error:
         app.logger.warning("Outlook notification failed: %s", error)
+        return False, "Delivery failed"
+
+
+def normalize_phone(phone):
+    return re.sub(r"[\s().-]", "", phone)
+
+
+def send_sms(recipient, body):
+    account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+    sender = os.getenv("TWILIO_PHONE_NUMBER")
+    if not account_sid or not auth_token or not sender:
+        return False, "SMS is not configured"
+    try:
+        Client(account_sid, auth_token).messages.create(to=recipient, from_=sender, body=body)
+        return True, "Sent"
+    except Exception as error:
+        app.logger.warning("SMS notification failed: %s", error)
         return False, "Delivery failed"
 
 
@@ -191,11 +216,14 @@ def register():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip().lower()
+        phone = normalize_phone(request.form.get("phone", "").strip())
         password = request.form.get("password", "")
         role = request.form.get("role", "")
         error = None
-        if not name or not email or not password:
+        if not name or not email or not password or not phone:
             error = "All fields are required."
+        elif not phone.startswith("+") or not phone[1:].isdigit():
+            error = "Enter a mobile number in international format, for example +15551234567."
         elif role not in {"developer", "tester"}:
             error = "Select a valid role."
         elif len(password) < 8:
@@ -204,8 +232,8 @@ def register():
             try:
                 db = get_db()
                 db.execute(
-                    "INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
-                    (name, email, generate_password_hash(password), role, datetime.now(UTC).isoformat()),
+                    "INSERT INTO users (name, email, phone, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (name, email, phone, generate_password_hash(password), role, datetime.now(UTC).isoformat()),
                 )
                 db.commit()
                 flash("Account created. You can now sign in.", "success")
@@ -225,8 +253,11 @@ def logout():
 @app.route("/forgot-password", methods=("GET", "POST"))
 def forgot_password():
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        user = get_db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        identifier = request.form.get("identifier", "").strip()
+        is_phone = identifier.startswith("+")
+        lookup_value = normalize_phone(identifier) if is_phone else identifier.lower()
+        column = "phone" if is_phone else "email"
+        user = get_db().execute(f"SELECT * FROM users WHERE {column} = ?", (lookup_value,)).fetchone()
         if user:
             token = secrets.token_urlsafe(32)
             expires_at = datetime.now(UTC) + timedelta(hours=app.config["RESET_TOKEN_HOURS"])
@@ -237,7 +268,11 @@ def forgot_password():
             )
             db.commit()
             reset_link = url_for("reset_password", token=token, _external=True)
-            send_email(email, "Reset your APM Change Control password", f"Reset your password within one hour:\n\n{reset_link}")
+            message = f"Reset your APM Change Control password within one hour: {reset_link}"
+            if is_phone:
+                send_sms(lookup_value, message)
+            else:
+                send_email(lookup_value, "Reset your APM Change Control password", message)
         flash("If that account exists, password reset instructions are ready.", "success")
     return render_template("forgot_password.html")
 
@@ -268,14 +303,7 @@ def reset_password(token):
 @login_required
 def dashboard():
     db = get_db()
-    if g.user["role"] == "tester":
-        rows = db.execute(
-            "SELECT * FROM change_requests WHERE tester_email = ? ORDER BY created_at DESC", (g.user["email"],)
-        ).fetchall()
-    else:
-        rows = db.execute(
-            "SELECT * FROM change_requests WHERE developer_id = ? ORDER BY created_at DESC", (g.user["id"],)
-        ).fetchall()
+    rows = db.execute("SELECT * FROM change_requests ORDER BY created_at DESC").fetchall()
     counts = {status: sum(row["status"] == status for row in rows) for status in ("New", "In Review", "Approved", "Rejected")}
     return render_template("dashboard.html", requests=rows, counts=counts)
 
@@ -328,10 +356,6 @@ def accessible_request(request_id):
     change_request = get_db().execute("SELECT * FROM change_requests WHERE id = ?", (request_id,)).fetchone()
     if not change_request:
         abort(404)
-    owns_request = g.user["role"] == "developer" and change_request["developer_id"] == g.user["id"]
-    assigned_request = g.user["role"] == "tester" and change_request["tester_email"].lower() == g.user["email"].lower()
-    if not owns_request and not assigned_request:
-        abort(403)
     return change_request
 
 

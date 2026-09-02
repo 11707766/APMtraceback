@@ -29,7 +29,7 @@ To open the app from a phone on the same Wi-Fi network, keep the server running 
 
 ## Local email configuration
 
-Copy `.env.example` to a new `.env` file and set `OUTLOOK_SMTP_USER` to the sending mailbox and `OUTLOOK_SMTP_PASSWORD` to its app password. The app loads this local file automatically when it starts. Keep `.env` private; it is excluded from Git.
+Copy `.env.example` to a new `.env` file and set `OUTLOOK_SMTP_USER` to the sending mailbox and `OUTLOOK_SMTP_PASSWORD` to its app password. Add `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER` to send mobile password reset links. The app loads this local file automatically when it starts. Keep `.env` private; it is excluded from Git.
 
 ## Deploy for any network
 
