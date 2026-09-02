@@ -96,7 +96,7 @@ class WorkflowTest(unittest.TestCase):
 
         self.post("/logout", {})
         reset_response = self.post("/forgot-password", {"email": "tester@example.com"})
-        self.assertIn(b"Continue to password reset", reset_response.data)
+        self.assertNotIn(b"Continue to password reset", reset_response.data)
         with app.app_context():
             reset = get_db().execute("SELECT token FROM password_resets").fetchone()
         changed = self.post(f"/reset-password/{reset['token']}", {"password": "NewPassword123"})

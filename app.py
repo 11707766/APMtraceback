@@ -222,7 +222,6 @@ def logout():
 
 @app.route("/forgot-password", methods=("GET", "POST"))
 def forgot_password():
-    reset_link = None
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         user = get_db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
@@ -236,11 +235,9 @@ def forgot_password():
             )
             db.commit()
             reset_link = url_for("reset_password", token=token, _external=True)
-            sent, _status = send_email(email, "Reset your APM Change Control password", f"Reset your password within one hour:\n\n{reset_link}")
-            if sent:
-                reset_link = None
+            send_email(email, "Reset your APM Change Control password", f"Reset your password within one hour:\n\n{reset_link}")
         flash("If that account exists, password reset instructions are ready.", "success")
-    return render_template("forgot_password.html", reset_link=reset_link)
+    return render_template("forgot_password.html")
 
 
 @app.route("/reset-password/<token>", methods=("GET", "POST"))
