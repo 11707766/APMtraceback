@@ -2,11 +2,13 @@ import os
 import secrets
 import smtplib
 import sqlite3
+import json
 from datetime import UTC, datetime, timedelta
 from email.message import EmailMessage
 from functools import wraps
 from pathlib import Path
 from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 from dotenv import load_dotenv
 from flask import (
@@ -123,6 +125,26 @@ def login_required(view):
 
 
 def send_email(recipient, subject, body):
+    resend_api_key = os.getenv("RESEND_API_KEY")
+    resend_from_email = os.getenv("RESEND_FROM_EMAIL")
+    if resend_api_key and resend_from_email:
+        payload = json.dumps(
+            {"from": resend_from_email, "to": [recipient], "subject": subject, "text": body}
+        ).encode()
+        request_data = Request(
+            "https://api.resend.com/emails",
+            data=payload,
+            headers={"Authorization": f"Bearer {resend_api_key}", "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(request_data, timeout=15):
+                pass
+            return True, "Sent"
+        except OSError as error:
+            app.logger.warning("Resend notification failed: %s", error)
+            return False, "Delivery failed"
+
     host = os.getenv("OUTLOOK_SMTP_HOST", "smtp.office365.com")
     port = int(os.getenv("OUTLOOK_SMTP_PORT", "587"))
     username = os.getenv("OUTLOOK_SMTP_USER")

@@ -27,9 +27,9 @@ Open `http://127.0.0.1:5000`, register one developer and one tester, then use th
 
 To open the app from a phone on the same Wi-Fi network, keep the server running and open `http://<computer-ip>:5000` on the phone. The default `APP_HOST=0.0.0.0` enables LAN access. Windows Firewall must allow Python on that network.
 
-## Local email configuration
+## Email configuration
 
-Copy `.env.example` to a new `.env` file and set `OUTLOOK_SMTP_USER` to the sending mailbox and `OUTLOOK_SMTP_PASSWORD` to its app password. The app loads this local file automatically when it starts. Keep `.env` private; it is excluded from Git.
+Copy `.env.example` to a new `.env` file. For reliable delivery on Render, set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` using a Resend verified domain. The app uses Resend when both are set, then falls back to Outlook SMTP when configured. Keep `.env` private; it is excluded from Git.
 
 ## Deploy for any network
 
@@ -39,6 +39,6 @@ The free service uses ephemeral SQLite storage, so accounts and requests can res
 
 A branded address such as `https://apmcontrol.com` requires registering that domain and connecting it to the deployed service. A single-label address such as `http://ApmControl` is only possible on a private network with custom DNS and cannot be a global mobile link.
 
-## Outlook configuration
+## Outlook fallback configuration
 
 Set the values shown in `.env.example` in the process environment. Microsoft 365 tenants may require SMTP AUTH to be enabled and an app password or SMTP relay account. Without these values, requests are still saved and the **Open in Outlook** button prepares the tester email in Outlook Web.

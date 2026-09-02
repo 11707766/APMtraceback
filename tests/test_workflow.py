@@ -1,8 +1,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from app import app, get_db, init_db
+from app import app, get_db, init_db, send_email
 
 
 class WorkflowTest(unittest.TestCase):
@@ -38,6 +39,14 @@ class WorkflowTest(unittest.TestCase):
 
     def login(self, email, password="Password123"):
         return self.post("/login", {"email": email, "password": password})
+
+    @patch.dict("os.environ", {"RESEND_API_KEY": "test-key", "RESEND_FROM_EMAIL": "APM <no-reply@example.com>"}, clear=True)
+    @patch("app.urlopen")
+    def test_resend_is_used_when_configured(self, mock_urlopen):
+        sent, status = send_email("user@example.com", "Subject", "Body")
+        self.assertTrue(sent)
+        self.assertEqual(status, "Sent")
+        mock_urlopen.assert_called_once()
 
     def test_complete_developer_to_tester_workflow(self):
         self.assertIn(b"Account created", self.register("Dev User", "dev@example.com", "developer").data)
