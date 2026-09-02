@@ -146,7 +146,7 @@ def send_email(recipient, subject, body):
 
 def request_email(change_request):
     detail_url = url_for("request_detail", request_id=change_request["id"], _external=True)
-    subject = f"[{change_request['priority']}] AMP Change Control request {change_request['requirement_signal_id']}"
+    subject = f"[{change_request['priority']}] APM Change Control request {change_request['requirement_signal_id']}"
     body = (
         f"Hello {change_request['tester_name']},\n\n"
         f"{change_request['developer_name']} submitted a change for testing.\n\n"
@@ -236,7 +236,7 @@ def forgot_password():
             )
             db.commit()
             reset_link = url_for("reset_password", token=token, _external=True)
-            sent, _status = send_email(email, "Reset your AMP Change Control password", f"Reset your password within one hour:\n\n{reset_link}")
+            sent, _status = send_email(email, "Reset your APM Change Control password", f"Reset your password within one hour:\n\n{reset_link}")
             if sent:
                 reset_link = None
         flash("If that account exists, password reset instructions are ready.", "success")

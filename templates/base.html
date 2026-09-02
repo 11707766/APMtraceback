@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}AMP Change Control{% endblock %}</title>
+  <title>{% block title %}APM Change Control{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700&display=swap" rel="stylesheet">
@@ -12,8 +12,8 @@
 <body class="{% block body_class %}{% endblock %}">
   {% if g.user %}
   <header class="topbar">
-    <a class="brand" href="{{ url_for('dashboard') }}" aria-label="AMP dashboard">
-      <span class="brand-mark">A</span><span>AMP <b>Change Control</b></span>
+    <a class="brand" href="{{ url_for('dashboard') }}" aria-label="APM dashboard">
+      <span class="brand-mark">A</span><span>APM <b>Change Control</b></span>
     </a>
     <nav>
       <span class="identity"><strong>{{ g.user['name'] }}</strong><small>{{ g.user['role']|title }}</small></span>
