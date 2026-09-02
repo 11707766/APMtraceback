@@ -5,7 +5,7 @@ A small Flask application for authenticated requirement and signal change handof
 ## Features
 
 - Developer and tester registration and credential-based login
-- One-hour password-reset links, delivered by Outlook SMTP when configured
+- Administrator-only temporary password reset
 - Developer change requests with requirement/signal ID, function, tester, reason, and priority
 - Side-by-side comparison of the previous and newly updated requirement or signal
 - Tester dashboard filtered by the tester's registered email
@@ -30,6 +30,10 @@ To open the app from a phone on the same Wi-Fi network, keep the server running 
 ## Email configuration
 
 Copy `.env.example` to a new `.env` file. For reliable delivery on Render, set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` using a Resend verified domain. The app uses Resend when both are set, then falls back to Outlook SMTP when configured. Keep `.env` private; it is excluded from Git.
+
+## Administrator password reset
+
+Set `ADMIN_EMAILS` to a comma-separated list of administrator work emails. After signing in, administrators can open the reset-user-password button in the header and set a temporary password for a registered user. The user then signs in and can change their own password from the dashboard.
 
 ## Deploy for any network
 

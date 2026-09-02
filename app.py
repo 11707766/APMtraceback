@@ -3,7 +3,7 @@ import secrets
 import smtplib
 import sqlite3
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from email.message import EmailMessage
 from functools import wraps
 from pathlib import Path
@@ -35,7 +35,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config.update(
     SECRET_KEY=os.getenv("SECRET_KEY", "dev-only-change-me"),
     DATABASE=str(DATABASE),
-    RESET_TOKEN_HOURS=1,
+    ADMIN_EMAILS=frozenset(email.strip().lower() for email in os.getenv("ADMIN_EMAILS", "").split(",") if email.strip()),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
@@ -122,6 +122,25 @@ def login_required(view):
         return view(**kwargs)
 
     return wrapped_view
+
+
+def is_admin():
+    return g.user is not None and g.user["email"].lower() in app.config["ADMIN_EMAILS"]
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped_view(**kwargs):
+        if not is_admin():
+            abort(403)
+        return view(**kwargs)
+
+    return wrapped_view
+
+
+@app.context_processor
+def add_template_context():
+    return {"is_admin": is_admin()}
 
 
 def send_email(recipient, subject, body):
@@ -260,52 +279,26 @@ def change_password():
     return render_template("change_password.html")
 
 
-@app.route("/forgot-password", methods=("GET", "POST"))
-def forgot_password():
+@app.route("/admin/password-reset", methods=("GET", "POST"))
+@login_required
+@admin_required
+def admin_password_reset():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
-        user = get_db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        password = request.form.get("password", "")
+        user = get_db().execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
         if user:
-            token = secrets.token_urlsafe(32)
-            expires_at = datetime.now(UTC) + timedelta(hours=app.config["RESET_TOKEN_HOURS"])
-            db = get_db()
-            db.execute(
-                "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
-                (user["id"], token, expires_at.isoformat()),
-            )
-            db.commit()
-            reset_link = url_for("reset_password", token=token, _external=True)
-            message = f"Reset your APM Change Control password within one hour: {reset_link}"
-            sent, _status = send_email(email, "Reset your APM Change Control password", message)
-            if sent:
-                flash("Password reset instructions are ready.", "success")
+            if len(password) < 8:
+                flash("Temporary password must be at least 8 characters.", "error")
             else:
-                flash("Password reset email could not be sent. Contact your administrator.", "error")
+                db = get_db()
+                db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(password), user["id"]))
+                db.execute("DELETE FROM password_resets WHERE user_id = ?", (user["id"],))
+                db.commit()
+                flash("Temporary password set for the user.", "success")
         else:
             flash("Account is not registered.", "error")
-    return render_template("forgot_password.html")
-
-
-@app.route("/reset-password/<token>", methods=("GET", "POST"))
-def reset_password(token):
-    reset = get_db().execute(
-        "SELECT * FROM password_resets WHERE token = ? AND used = 0", (token,)
-    ).fetchone()
-    if not reset or datetime.fromisoformat(reset["expires_at"]) < datetime.now(UTC):
-        flash("This reset link is invalid or expired.", "error")
-        return redirect(url_for("forgot_password"))
-    if request.method == "POST":
-        password = request.form.get("password", "")
-        if len(password) < 8:
-            flash("Password must be at least 8 characters.", "error")
-        else:
-            db = get_db()
-            db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(password), reset["user_id"]))
-            db.execute("UPDATE password_resets SET used = 1 WHERE id = ?", (reset["id"],))
-            db.commit()
-            flash("Password updated. Sign in with your new password.", "success")
-            return redirect(url_for("login"))
-    return render_template("reset_password.html")
+    return render_template("admin_password_reset.html")
 
 
 @app.route("/dashboard")

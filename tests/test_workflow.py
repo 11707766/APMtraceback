@@ -14,6 +14,7 @@ class WorkflowTest(unittest.TestCase):
             DATABASE=str(Path(self.temp_dir.name) / "test.db"),
             SECRET_KEY="test-secret",
             SERVER_NAME="localhost",
+            ADMIN_EMAILS=frozenset({"dev@example.com"}),
         )
         with app.app_context():
             init_db()
@@ -58,6 +59,8 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"Password updated", changed_password.data)
         self.post("/logout", {})
         self.assertIn(b"Developer workspace", self.login("dev@example.com", "ChangedPassword123").data)
+        admin_reset = self.post("/admin/password-reset", {"email": "tester@example.com", "password": "TemporaryPassword123"})
+        self.assertIn(b"Temporary password set", admin_reset.data)
         response = self.post(
             "/requests/new",
             {
@@ -93,7 +96,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"Timeout = 300 ms", edited.data)
 
         self.post("/logout", {})
-        tester_dashboard = self.login("tester@example.com")
+        tester_dashboard = self.login("tester@example.com", "TemporaryPassword123")
         self.assertIn(b"Tester workspace", tester_dashboard.data)
         self.assertIn(b"SIG-CAN-08", tester_dashboard.data)
         forbidden_delete = self.post("/requests/1/delete", {}, follow_redirects=False)
@@ -106,6 +109,7 @@ class WorkflowTest(unittest.TestCase):
         observer_dashboard = self.login("observer@example.com")
         self.assertIn(b"SIG-CAN-08", observer_dashboard.data)
         self.assertEqual(self.client.get("/requests/1").status_code, 200)
+        self.assertEqual(self.post("/admin/password-reset", {"email": "tester@example.com", "password": "AnotherPassword123"}, follow_redirects=False).status_code, 403)
 
         self.post("/logout", {})
         self.login("dev@example.com", "ChangedPassword123")
@@ -113,18 +117,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"Request SIG-CAN-08 deleted", deleted.data)
         self.assertNotIn(b"SIG-CAN-08</strong>", deleted.data)
 
-        self.post("/logout", {})
-        reset_response = self.post("/forgot-password", {"email": "tester@example.com"})
-        self.assertNotIn(b"Continue to password reset", reset_response.data)
-        self.assertIn(b"Password reset email could not be sent", reset_response.data)
-        unknown_reset = self.post("/forgot-password", {"email": "unknown@example.com"})
-        self.assertIn(b"Account is not registered", unknown_reset.data)
-        with app.app_context():
-            reset_count = get_db().execute("SELECT COUNT(*) FROM password_resets").fetchone()[0]
-            self.assertEqual(reset_count, 1)
-            reset = get_db().execute("SELECT token FROM password_resets LIMIT 1").fetchone()
-        changed = self.post(f"/reset-password/{reset['token']}", {"password": "NewPassword123"})
-        self.assertIn(b"Password updated", changed.data)
+        self.assertEqual(self.client.get("/forgot-password").status_code, 404)
 
 
 if __name__ == "__main__":
