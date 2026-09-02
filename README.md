@@ -27,6 +27,10 @@ Open `http://127.0.0.1:5000`, register one developer and one tester, then use th
 
 To open the app from a phone on the same Wi-Fi network, keep the server running and open `http://<computer-ip>:5000` on the phone. The default `APP_HOST=0.0.0.0` enables LAN access. Windows Firewall must allow Python on that network.
 
+## Local email configuration
+
+Copy `.env.example` to a new `.env` file and set `OUTLOOK_SMTP_USER` to the sending mailbox and `OUTLOOK_SMTP_PASSWORD` to its app password. The app loads this local file automatically when it starts. Keep `.env` private; it is excluded from Git.
+
 ## Deploy for any network
 
 The included `render.yaml` deploys the app on Render's free compute plan with Gunicorn and HTTPS session cookies. In Render, create a new Blueprint from this GitHub repository. Render supplies a public address similar to `https://apmcontrol.onrender.com`.

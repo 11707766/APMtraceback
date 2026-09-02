@@ -8,6 +8,7 @@ from functools import wraps
 from pathlib import Path
 from urllib.parse import quote
 
+from dotenv import load_dotenv
 from flask import (
     Flask,
     abort,
@@ -24,6 +25,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 DATABASE = Path(os.getenv("DATABASE_PATH", BASE_DIR / "amp.db"))
 
 app = Flask(__name__)
