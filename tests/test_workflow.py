@@ -43,6 +43,9 @@ class WorkflowTest(unittest.TestCase):
     def login(self, email, password="Password123"):
         return self.post("/login", {"email": email, "password": password})
 
+    def admin_login(self, email, password="Password123"):
+        return self.post("/admin/login", {"email": email, "password": password})
+
     @patch.dict("os.environ", {"RESEND_API_KEY": "test-key", "RESEND_FROM_EMAIL": "APM <no-reply@example.com>"}, clear=True)
     @patch("app.urlopen")
     def test_resend_is_used_when_configured(self, mock_urlopen):
@@ -60,7 +63,7 @@ class WorkflowTest(unittest.TestCase):
         changed_password = self.post("/account/password", {"password": "ChangedPassword123"})
         self.assertIn(b"Password updated", changed_password.data)
         self.post("/logout", {})
-        self.assertIn(b"Developer workspace", self.login("dev@example.com", "ChangedPassword123").data)
+        self.assertIn(b"Developer workspace", self.admin_login("dev@example.com", "ChangedPassword123").data)
         users_page = self.client.get("/admin/users")
         self.assertIn(b"Registered users", users_page.data)
         self.assertIn(b"tester@example.com", users_page.data)
@@ -116,6 +119,11 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual(self.client.get("/requests/1").status_code, 200)
         self.assertEqual(self.client.get("/admin/users").status_code, 403)
         self.assertEqual(self.post("/admin/password-reset", {"email": "tester@example.com", "password": "AnotherPassword123"}, follow_redirects=False).status_code, 403)
+        self.post("/logout", {})
+        rejected_admin_login = self.admin_login("observer@example.com")
+        self.assertIn(b"Administrator email or password is incorrect", rejected_admin_login.data)
+        self.assertEqual(self.client.get("/dashboard", follow_redirects=False).status_code, 302)
+        self.assertIn(b"Developer workspace", self.admin_login("dev@example.com", "ChangedPassword123").data)
 
         self.post("/logout", {})
         self.login("dev@example.com", "ChangedPassword123")

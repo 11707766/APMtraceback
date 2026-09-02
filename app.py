@@ -249,6 +249,24 @@ def login():
     return render_template("login.html")
 
 
+@app.route("/admin/login", methods=("GET", "POST"))
+def admin_login():
+    if g.user:
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        user = get_db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        admin_emails = {*app.config["ADMIN_EMAILS"], app.config["ADMIN_BOOTSTRAP_EMAIL"]}
+        if user and email in admin_emails and check_password_hash(user["password_hash"], password):
+            session.clear()
+            session["user_id"] = user["id"]
+            session["csrf_token"] = secrets.token_urlsafe(32)
+            return redirect(url_for("dashboard"))
+        flash("Administrator email or password is incorrect.", "error")
+    return render_template("admin_login.html")
+
+
 @app.route("/register", methods=("GET", "POST"))
 def register():
     if request.method == "POST":
