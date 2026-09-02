@@ -238,8 +238,11 @@ def forgot_password():
             db.commit()
             reset_link = url_for("reset_password", token=token, _external=True)
             message = f"Reset your APM Change Control password within one hour: {reset_link}"
-            send_email(email, "Reset your APM Change Control password", message)
-            flash("Password reset instructions are ready.", "success")
+            sent, _status = send_email(email, "Reset your APM Change Control password", message)
+            if sent:
+                flash("Password reset instructions are ready.", "success")
+            else:
+                flash("Password reset email could not be sent. Contact your administrator.", "error")
         else:
             flash("Account is not registered.", "error")
     return render_template("forgot_password.html")

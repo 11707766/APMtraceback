@@ -103,7 +103,7 @@ class WorkflowTest(unittest.TestCase):
         self.post("/logout", {})
         reset_response = self.post("/forgot-password", {"email": "tester@example.com"})
         self.assertNotIn(b"Continue to password reset", reset_response.data)
-        self.assertIn(b"Password reset instructions are ready", reset_response.data)
+        self.assertIn(b"Password reset email could not be sent", reset_response.data)
         unknown_reset = self.post("/forgot-password", {"email": "unknown@example.com"})
         self.assertIn(b"Account is not registered", unknown_reset.data)
         with app.app_context():
