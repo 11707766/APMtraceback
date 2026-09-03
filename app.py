@@ -39,6 +39,9 @@ app.config.update(
     ACTIVITY_VIEWER_EMAILS=frozenset(
         email.strip().lower() for email in os.getenv("ACTIVITY_VIEWER_EMAILS", "").split(",") if email.strip()
     ),
+    PASSWORD_RESET_ADMIN_EMAILS=frozenset(
+        email.strip().lower() for email in os.getenv("PASSWORD_RESET_ADMIN_EMAILS", "").split(",") if email.strip()
+    ),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
@@ -88,6 +91,13 @@ def init_db():
             ip_address TEXT NOT NULL,
             user_agent TEXT NOT NULL,
             logged_in_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS password_reset_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            administrator_email TEXT NOT NULL,
+            target_email TEXT NOT NULL,
+            reset_at TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS change_requests (
@@ -150,9 +160,26 @@ def activity_viewer_required(view):
     return wrapped_view
 
 
+def is_password_reset_admin():
+    return g.user is not None and g.user["email"].lower() in app.config["PASSWORD_RESET_ADMIN_EMAILS"]
+
+
+def password_reset_admin_required(view):
+    @wraps(view)
+    def wrapped_view(**kwargs):
+        if not is_password_reset_admin():
+            abort(403)
+        return view(**kwargs)
+
+    return wrapped_view
+
+
 @app.context_processor
 def add_template_context():
-    return {"is_activity_viewer": is_activity_viewer()}
+    return {
+        "is_activity_viewer": is_activity_viewer(),
+        "is_password_reset_admin": is_password_reset_admin(),
+    }
 
 
 def log_successful_login(user):
@@ -292,6 +319,39 @@ def activity():
         "SELECT email, ip_address, user_agent, logged_in_at FROM login_events ORDER BY logged_in_at DESC LIMIT 200"
     ).fetchall()
     return render_template("activity.html", events=events)
+
+
+@app.route("/password-resets")
+@login_required
+@password_reset_admin_required
+def password_resets():
+    users = get_db().execute("SELECT id, name, email, role FROM users ORDER BY name, email").fetchall()
+    events = get_db().execute(
+        "SELECT administrator_email, target_email, reset_at FROM password_reset_events ORDER BY reset_at DESC LIMIT 20"
+    ).fetchall()
+    return render_template("password_resets.html", users=users, events=events)
+
+
+@app.post("/password-resets/<int:user_id>")
+@login_required
+@password_reset_admin_required
+def reset_user_password(user_id):
+    password = request.form.get("password", "")
+    user = get_db().execute("SELECT email FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        abort(404)
+    if len(password) < 8:
+        flash("Temporary password must be at least 8 characters.", "error")
+    else:
+        db = get_db()
+        db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(password), user_id))
+        db.execute(
+            "INSERT INTO password_reset_events (administrator_email, target_email, reset_at) VALUES (?, ?, ?)",
+            (g.user["email"], user["email"], datetime.now(UTC).isoformat()),
+        )
+        db.commit()
+        flash(f"Temporary password set for {user['email']}.", "success")
+    return redirect(url_for("password_resets"))
 
 
 @app.route("/forgot-password", methods=("GET", "POST"))

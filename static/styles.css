@@ -178,6 +178,9 @@ dt:first-child { margin-top: 0; }
 dd { margin: 4px 0 0; font-weight: 600; }
 dd small { display: block; color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
 .activity-agent { max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
+.activity-history { margin-top: 28px; }
+.reset-user-form { margin: 0; display: flex; gap: 8px; align-items: center; }
+.reset-user-form input { min-width: 190px; min-height: 38px; }
 
 @keyframes enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 

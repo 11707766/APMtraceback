@@ -23,6 +23,9 @@
       {% if is_activity_viewer %}<a class="icon-button" href="{{ url_for('activity') }}" title="View sign-in activity" aria-label="View sign-in activity">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18M7 16v-5M12 16V7M17 16v-8"/></svg>
       </a>{% endif %}
+      {% if is_password_reset_admin %}<a class="icon-button" href="{{ url_for('password_resets') }}" title="Reset user passwords" aria-label="Reset user passwords">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM5 20v-1.5a4.5 4.5 0 0 1 4.5-4.5h5a4.5 4.5 0 0 1 4.5 4.5V20M16 5h4M18 3v4"/></svg>
+      </a>{% endif %}
       <form action="{{ url_for('logout') }}" method="post">
         <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
         <button class="icon-button" title="Sign out" aria-label="Sign out" type="submit">

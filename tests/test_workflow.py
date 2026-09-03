@@ -15,6 +15,7 @@ class WorkflowTest(unittest.TestCase):
             SECRET_KEY="test-secret",
             SERVER_NAME="localhost",
             ACTIVITY_VIEWER_EMAILS=frozenset({"dev@example.com"}),
+            PASSWORD_RESET_ADMIN_EMAILS=frozenset({"dev@example.com"}),
         )
         with app.app_context():
             init_db()
@@ -58,6 +59,12 @@ class WorkflowTest(unittest.TestCase):
         activity = self.client.get("/activity")
         self.assertIn(b"Successful sign-ins", activity.data)
         self.assertIn(b"dev@example.com", activity.data)
+        reset_page = self.client.get("/password-resets")
+        self.assertIn(b"Set temporary password", reset_page.data)
+        with app.app_context():
+            tester = get_db().execute("SELECT id FROM users WHERE email = ?", ("tester@example.com",)).fetchone()
+        reset = self.post(f"/password-resets/{tester['id']}", {"password": "AdminReset123"})
+        self.assertIn(b"Temporary password set", reset.data)
         changed_password = self.post("/account/password", {"password": "ChangedPassword123"})
         self.assertIn(b"Password updated", changed_password.data)
         self.post("/logout", {})
@@ -97,7 +104,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"Timeout = 300 ms", edited.data)
 
         self.post("/logout", {})
-        tester_dashboard = self.login("tester@example.com")
+        tester_dashboard = self.login("tester@example.com", "AdminReset123")
         self.assertIn(b"Tester workspace", tester_dashboard.data)
         self.assertIn(b"SIG-CAN-08", tester_dashboard.data)
         forbidden_delete = self.post("/requests/1/delete", {}, follow_redirects=False)
@@ -111,6 +118,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"SIG-CAN-08", observer_dashboard.data)
         self.assertEqual(self.client.get("/requests/1").status_code, 200)
         self.assertEqual(self.client.get("/activity").status_code, 403)
+        self.assertEqual(self.client.get("/password-resets").status_code, 403)
 
         self.post("/logout", {})
         self.login("dev@example.com", "ChangedPassword123")
