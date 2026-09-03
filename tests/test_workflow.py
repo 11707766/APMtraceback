@@ -113,8 +113,16 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"Request SIG-CAN-08 deleted", deleted.data)
         self.assertNotIn(b"SIG-CAN-08</strong>", deleted.data)
 
-        forgot_password = self.client.get("/forgot-password", follow_redirects=True)
-        self.assertIn(b"Sign in to change your password", forgot_password.data)
+        with patch("app.send_email", return_value=(True, "Sent")) as mock_send_email:
+            forgot_password = self.post("/forgot-password", {"email": "tester@example.com"})
+        self.assertIn(b"Password reset link sent", forgot_password.data)
+        mock_send_email.assert_called_once()
+        with app.app_context():
+            reset = get_db().execute("SELECT token FROM password_resets WHERE used = 0").fetchone()
+        changed = self.post(f"/reset-password/{reset['token']}", {"password": "NewPassword123"})
+        self.assertIn(b"Password updated", changed.data)
+        self.post("/logout", {})
+        self.assertIn(b"Tester workspace", self.login("tester@example.com", "NewPassword123").data)
 
 
 if __name__ == "__main__":
