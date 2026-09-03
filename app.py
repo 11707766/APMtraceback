@@ -35,9 +35,6 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config.update(
     SECRET_KEY=os.getenv("SECRET_KEY", "dev-only-change-me"),
     DATABASE=str(DATABASE),
-    ADMIN_EMAILS=frozenset(email.strip().lower() for email in os.getenv("ADMIN_EMAILS", "").split(",") if email.strip()),
-    ADMIN_BOOTSTRAP_EMAIL=os.getenv("ADMIN_BOOTSTRAP_EMAIL", "").strip().lower(),
-    ADMIN_BOOTSTRAP_PASSWORD=os.getenv("ADMIN_BOOTSTRAP_PASSWORD", ""),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
@@ -80,11 +77,6 @@ def init_db():
             used INTEGER NOT NULL DEFAULT 0
         );
 
-        CREATE TABLE IF NOT EXISTS app_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-
         CREATE TABLE IF NOT EXISTS change_requests (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             requirement_signal_id TEXT NOT NULL,
@@ -108,17 +100,6 @@ def init_db():
     for column in ("previous_value", "new_value"):
         if column not in request_columns:
             db.execute(f"ALTER TABLE change_requests ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
-    bootstrap_email = app.config["ADMIN_BOOTSTRAP_EMAIL"]
-    bootstrap_password = app.config["ADMIN_BOOTSTRAP_PASSWORD"]
-    if bootstrap_email and len(bootstrap_password) >= 8:
-        user = db.execute("SELECT id FROM users WHERE email = ?", (bootstrap_email,)).fetchone()
-        if user:
-            db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(bootstrap_password), user["id"]))
-        else:
-            db.execute(
-                "INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
-                ("Administrator", bootstrap_email, generate_password_hash(bootstrap_password), "developer", datetime.now(UTC).isoformat()),
-            )
     db.commit()
 
 
@@ -140,27 +121,6 @@ def login_required(view):
         return view(**kwargs)
 
     return wrapped_view
-
-
-def is_admin():
-    return g.user is not None and g.user["email"].lower() in {
-        *app.config["ADMIN_EMAILS"], app.config["ADMIN_BOOTSTRAP_EMAIL"]
-    }
-
-
-def admin_required(view):
-    @wraps(view)
-    def wrapped_view(**kwargs):
-        if not is_admin():
-            abort(403)
-        return view(**kwargs)
-
-    return wrapped_view
-
-
-@app.context_processor
-def add_template_context():
-    return {"is_admin": is_admin()}
 
 
 def send_email(recipient, subject, body):
@@ -247,24 +207,6 @@ def login():
     return render_template("login.html")
 
 
-@app.route("/admin/login", methods=("GET", "POST"))
-def admin_login():
-    if g.user:
-        return redirect(url_for("dashboard"))
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
-        user = get_db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-        admin_emails = {*app.config["ADMIN_EMAILS"], app.config["ADMIN_BOOTSTRAP_EMAIL"]}
-        if user and email in admin_emails and check_password_hash(user["password_hash"], password):
-            session.clear()
-            session["user_id"] = user["id"]
-            session["csrf_token"] = secrets.token_urlsafe(32)
-            return redirect(url_for("dashboard"))
-        flash("Administrator email or password is incorrect.", "error")
-    return render_template("admin_login.html")
-
-
 @app.route("/register", methods=("GET", "POST"))
 def register():
     if request.method == "POST":
@@ -315,36 +257,6 @@ def change_password():
             flash("Password updated.", "success")
             return redirect(url_for("dashboard"))
     return render_template("change_password.html")
-
-
-@app.route("/admin/password-reset", methods=("GET", "POST"))
-@login_required
-@admin_required
-def admin_password_reset():
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
-        user = get_db().execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
-        if user:
-            if len(password) < 8:
-                flash("Temporary password must be at least 8 characters.", "error")
-            else:
-                db = get_db()
-                db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(password), user["id"]))
-                db.execute("DELETE FROM password_resets WHERE user_id = ?", (user["id"],))
-                db.commit()
-                flash("Temporary password set for the user.", "success")
-        else:
-            flash("Account is not registered.", "error")
-    return render_template("admin_password_reset.html", email=request.args.get("email", "").strip().lower())
-
-
-@app.route("/admin/users")
-@login_required
-@admin_required
-def admin_users():
-    users = get_db().execute("SELECT name, email, role, created_at FROM users ORDER BY name, email").fetchall()
-    return render_template("admin_users.html", users=users)
 
 
 @app.route("/dashboard")

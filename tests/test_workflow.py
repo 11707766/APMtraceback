@@ -14,9 +14,6 @@ class WorkflowTest(unittest.TestCase):
             DATABASE=str(Path(self.temp_dir.name) / "test.db"),
             SECRET_KEY="test-secret",
             SERVER_NAME="localhost",
-            ADMIN_EMAILS=frozenset({"dev@example.com"}),
-            ADMIN_BOOTSTRAP_EMAIL="",
-            ADMIN_BOOTSTRAP_PASSWORD="",
         )
         with app.app_context():
             init_db()
@@ -43,24 +40,6 @@ class WorkflowTest(unittest.TestCase):
     def login(self, email, password="Password123"):
         return self.post("/login", {"email": email, "password": password})
 
-    def admin_login(self, email, password="Password123"):
-        return self.post("/admin/login", {"email": email, "password": password})
-
-    def test_bootstrap_password_is_reapplied(self):
-        app.config.update(
-            ADMIN_BOOTSTRAP_EMAIL="admin@example.com",
-            ADMIN_BOOTSTRAP_PASSWORD="FirstPassword123",
-        )
-        with app.app_context():
-            init_db()
-        self.assertIn(b"Developer workspace", self.admin_login("admin@example.com", "FirstPassword123").data)
-
-        self.post("/logout", {})
-        app.config["ADMIN_BOOTSTRAP_PASSWORD"] = "SecondPassword123"
-        with app.app_context():
-            init_db()
-        self.assertIn(b"Developer workspace", self.admin_login("admin@example.com", "SecondPassword123").data)
-
     @patch.dict("os.environ", {"RESEND_API_KEY": "test-key", "RESEND_FROM_EMAIL": "APM <no-reply@example.com>"}, clear=True)
     @patch("app.urlopen")
     def test_resend_is_used_when_configured(self, mock_urlopen):
@@ -78,12 +57,7 @@ class WorkflowTest(unittest.TestCase):
         changed_password = self.post("/account/password", {"password": "ChangedPassword123"})
         self.assertIn(b"Password updated", changed_password.data)
         self.post("/logout", {})
-        self.assertIn(b"Developer workspace", self.admin_login("dev@example.com", "ChangedPassword123").data)
-        users_page = self.client.get("/admin/users")
-        self.assertIn(b"Registered users", users_page.data)
-        self.assertIn(b"tester@example.com", users_page.data)
-        admin_reset = self.post("/admin/password-reset", {"email": "tester@example.com", "password": "TemporaryPassword123"})
-        self.assertIn(b"Temporary password set", admin_reset.data)
+        self.assertIn(b"Developer workspace", self.login("dev@example.com", "ChangedPassword123").data)
         response = self.post(
             "/requests/new",
             {
@@ -119,7 +93,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"Timeout = 300 ms", edited.data)
 
         self.post("/logout", {})
-        tester_dashboard = self.login("tester@example.com", "TemporaryPassword123")
+        tester_dashboard = self.login("tester@example.com")
         self.assertIn(b"Tester workspace", tester_dashboard.data)
         self.assertIn(b"SIG-CAN-08", tester_dashboard.data)
         forbidden_delete = self.post("/requests/1/delete", {}, follow_redirects=False)
@@ -132,13 +106,6 @@ class WorkflowTest(unittest.TestCase):
         observer_dashboard = self.login("observer@example.com")
         self.assertIn(b"SIG-CAN-08", observer_dashboard.data)
         self.assertEqual(self.client.get("/requests/1").status_code, 200)
-        self.assertEqual(self.client.get("/admin/users").status_code, 403)
-        self.assertEqual(self.post("/admin/password-reset", {"email": "tester@example.com", "password": "AnotherPassword123"}, follow_redirects=False).status_code, 403)
-        self.post("/logout", {})
-        rejected_admin_login = self.admin_login("observer@example.com")
-        self.assertIn(b"Administrator email or password is incorrect", rejected_admin_login.data)
-        self.assertEqual(self.client.get("/dashboard", follow_redirects=False).status_code, 302)
-        self.assertIn(b"Developer workspace", self.admin_login("dev@example.com", "ChangedPassword123").data)
 
         self.post("/logout", {})
         self.login("dev@example.com", "ChangedPassword123")

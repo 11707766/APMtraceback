@@ -31,9 +31,9 @@ To open the app from a phone on the same Wi-Fi network, keep the server running 
 
 Copy `.env.example` to a new `.env` file. For reliable delivery on Render, set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` using a Resend verified domain. The app uses Resend when both are set, then falls back to Outlook SMTP when configured. Keep `.env` private; it is excluded from Git.
 
-## Administrator password reset
+## Password changes
 
-Set `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` as Render secrets to create the first administrator account. Updating the bootstrap password and redeploying resets that administrator's password. Use `ADMIN_EMAILS` for additional administrator work emails. After signing in, administrators can open Manage users from the header, see all developers and testers, and set a temporary password for any registered user. The user then signs in and can change their own password from the dashboard.
+After signing in, use the password button in the dashboard header to set a new password. This is available only to the signed-in user and does not require the old password.
 
 ## Deploy for any network
 
