@@ -14,6 +14,7 @@ class WorkflowTest(unittest.TestCase):
             DATABASE=str(Path(self.temp_dir.name) / "test.db"),
             SECRET_KEY="test-secret",
             SERVER_NAME="localhost",
+            RECOVERY_MANAGER_EMAILS=frozenset({"dev@example.com"}),
         )
         with app.app_context():
             init_db()
@@ -58,6 +59,20 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"Password updated", changed_password.data)
         self.post("/logout", {})
         self.assertIn(b"Developer workspace", self.login("dev@example.com", "ChangedPassword123").data)
+        with patch("app.secrets.token_urlsafe", return_value="recovery-code"):
+            generated = self.post("/recovery-codes", {"email": "tester@example.com"})
+        self.assertIn(b"One-time recovery code", generated.data)
+        self.assertIn(b"RECOVERY-CODE", generated.data)
+        with app.app_context():
+            recovery = get_db().execute("SELECT code_hash FROM recovery_codes WHERE used = 0").fetchone()
+        self.assertIsNotNone(recovery)
+        self.post("/logout", {})
+        recovered = self.post(
+            "/recovery",
+            {"email": "tester@example.com", "code": "RECOVERY-CODE", "password": "RecoveryPassword123"},
+        )
+        self.assertIn(b"Password updated", recovered.data)
+        self.assertIn(b"Developer workspace", self.login("dev@example.com", "ChangedPassword123").data)
         response = self.post(
             "/requests/new",
             {
@@ -93,7 +108,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"Timeout = 300 ms", edited.data)
 
         self.post("/logout", {})
-        tester_dashboard = self.login("tester@example.com")
+        tester_dashboard = self.login("tester@example.com", "RecoveryPassword123")
         self.assertIn(b"Tester workspace", tester_dashboard.data)
         self.assertIn(b"SIG-CAN-08", tester_dashboard.data)
         forbidden_delete = self.post("/requests/1/delete", {}, follow_redirects=False)
@@ -101,6 +116,11 @@ class WorkflowTest(unittest.TestCase):
 
         updated = self.post("/requests/1/status", {"status": "Approved"})
         self.assertIn(b"Approved", updated.data)
+
+        self.post("/logout", {})
+        rejected_manager = self.login("tester@example.com", "RecoveryPassword123")
+        self.assertIn(b"Tester workspace", rejected_manager.data)
+        self.assertEqual(self.client.get("/recovery-codes").status_code, 403)
 
         self.post("/logout", {})
         observer_dashboard = self.login("observer@example.com")

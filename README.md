@@ -31,6 +31,10 @@ To open the app from a phone on the same Wi-Fi network, keep the server running 
 
 Copy `.env.example` to a new `.env` file. For reliable delivery on Render, set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` using a Resend verified domain. The app uses Resend when both are set, then falls back to Outlook SMTP when configured. Keep `.env` private; it is excluded from Git.
 
+## Recovery codes
+
+Set `RECOVERY_MANAGER_EMAILS` to the comma-separated work emails of authorized recovery managers. A signed-in manager can generate a one-time recovery code for a registered user and share it through an approved internal channel. The user opens Forgot password, enters the code and a new password, and the code expires after one hour.
+
 ## Password changes
 
 After signing in, use the password button in the dashboard header to set a new password. This is available only to the signed-in user and does not require the old password.

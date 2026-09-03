@@ -1,0 +1,15 @@
+{% extends "auth_base.html" %}
+{% block title %}Recover password · APM Change Control{% endblock %}
+{% block auth_content %}
+<p class="eyebrow">Account recovery</p>
+<h2>Use a recovery code</h2>
+<p class="muted">Ask your recovery manager for a one-time code, then choose a new password.</p>
+<form method="post" class="form-stack">
+  <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
+  <label>Work email<input type="email" name="email" autocomplete="email" required autofocus placeholder="name@company.com"></label>
+  <label>Recovery code<input name="code" autocomplete="one-time-code" required></label>
+  <label>New password<input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
+  <button class="button primary wide" type="submit">Update password <span>→</span></button>
+</form>
+<p class="auth-switch"><a href="{{ url_for('login') }}">← Back to sign in</a></p>
+{% endblock %}
