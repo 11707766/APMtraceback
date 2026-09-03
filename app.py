@@ -36,9 +36,6 @@ app.config.update(
     SECRET_KEY=os.getenv("SECRET_KEY", "dev-only-change-me"),
     DATABASE=str(DATABASE),
     RESET_TOKEN_HOURS=1,
-    RECOVERY_MANAGER_EMAILS=frozenset(
-        email.strip().lower() for email in os.getenv("RECOVERY_MANAGER_EMAILS", "").split(",") if email.strip()
-    ),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
@@ -77,14 +74,6 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             token TEXT NOT NULL UNIQUE,
-            expires_at TEXT NOT NULL,
-            used INTEGER NOT NULL DEFAULT 0
-        );
-
-        CREATE TABLE IF NOT EXISTS recovery_codes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            code_hash TEXT NOT NULL,
             expires_at TEXT NOT NULL,
             used INTEGER NOT NULL DEFAULT 0
         );
@@ -133,25 +122,6 @@ def login_required(view):
         return view(**kwargs)
 
     return wrapped_view
-
-
-def is_recovery_manager():
-    return g.user is not None and g.user["email"].lower() in app.config["RECOVERY_MANAGER_EMAILS"]
-
-
-def recovery_manager_required(view):
-    @wraps(view)
-    def wrapped_view(**kwargs):
-        if not is_recovery_manager():
-            abort(403)
-        return view(**kwargs)
-
-    return wrapped_view
-
-
-@app.context_processor
-def add_template_context():
-    return {"is_recovery_manager": is_recovery_manager()}
 
 
 def send_email(recipient, subject, body):
@@ -272,57 +242,6 @@ def register():
 def logout():
     session.clear()
     return redirect(url_for("login"))
-
-
-@app.route("/recovery", methods=("GET", "POST"))
-def recovery():
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        code = request.form.get("code", "").strip().upper()
-        password = request.form.get("password", "")
-        user = get_db().execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
-        reset = None
-        if user:
-            reset = get_db().execute(
-                "SELECT * FROM recovery_codes WHERE user_id = ? AND used = 0 ORDER BY id DESC LIMIT 1", (user["id"],)
-            ).fetchone()
-        if not reset or datetime.fromisoformat(reset["expires_at"]) < datetime.now(UTC) or not check_password_hash(reset["code_hash"], code):
-            flash("Recovery code is invalid or expired.", "error")
-        elif len(password) < 8:
-            flash("Password must be at least 8 characters.", "error")
-        else:
-            db = get_db()
-            db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(password), user["id"]))
-            db.execute("UPDATE recovery_codes SET used = 1 WHERE id = ?", (reset["id"],))
-            db.commit()
-            flash("Password updated. Sign in with your new password.", "success")
-            return redirect(url_for("login"))
-    return render_template("recovery.html")
-
-
-@app.route("/recovery-codes", methods=("GET", "POST"))
-@login_required
-@recovery_manager_required
-def recovery_codes():
-    issued_code = None
-    email = ""
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        user = get_db().execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
-        if not user:
-            flash("Account is not registered.", "error")
-        else:
-            issued_code = secrets.token_urlsafe(9).upper()
-            expires_at = datetime.now(UTC) + timedelta(hours=app.config["RESET_TOKEN_HOURS"])
-            db = get_db()
-            db.execute("UPDATE recovery_codes SET used = 1 WHERE user_id = ? AND used = 0", (user["id"],))
-            db.execute(
-                "INSERT INTO recovery_codes (user_id, code_hash, expires_at) VALUES (?, ?, ?)",
-                (user["id"], generate_password_hash(issued_code), expires_at.isoformat()),
-            )
-            db.commit()
-            flash("One-time recovery code generated.", "success")
-    return render_template("recovery_codes.html", issued_code=issued_code, email=email)
 
 
 @app.route("/forgot-password", methods=("GET", "POST"))

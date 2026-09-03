@@ -153,9 +153,6 @@ tbody tr:last-child td { border-bottom: 0; }
 .account-form { min-height: 0; gap: 28px; }
 .account-form h1 { margin-bottom: 8px; font-size: 28px; }
 .account-form .form-stack { max-width: 460px; margin-top: 0; }
-.recovery-code { max-width: 460px; padding: 14px; color: var(--green-dark); background: #e8f5ee; border: 1px solid #a8d8bf; border-radius: 4px; }
-.recovery-code small { display: block; margin-bottom: 5px; color: var(--muted); }
-.recovery-code strong { font: 700 18px Consolas, monospace; letter-spacing: .08em; overflow-wrap: anywhere; }
 .comparison-view { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .comparison-card { overflow: hidden; border: 1px solid var(--line); border-radius: 4px; }
 .comparison-card header { padding: 12px 14px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
