@@ -177,6 +177,7 @@ dt { margin-top: 18px; color: var(--muted); font-size: 11px; font-weight: 700; t
 dt:first-child { margin-top: 0; }
 dd { margin: 4px 0 0; font-weight: 600; }
 dd small { display: block; color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
+.activity-agent { max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
 
 @keyframes enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 

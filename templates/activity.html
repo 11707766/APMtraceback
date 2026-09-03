@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Sign-in activity · APM Change Control{% endblock %}
+{% block content %}
+<main class="page">
+  <div class="page-heading dashboard-heading"><div><p class="eyebrow">Activity viewer</p><h1>Sign-in activity</h1><p class="muted">Successful sign-ins are retained for operational security review.</p></div></div>
+  <section class="table-section">
+    <div class="section-title"><div><p class="eyebrow">Recent activity</p><h2>Successful sign-ins</h2></div><span class="record-count">{{ events|length }} events</span></div>
+    {% if events %}<div class="table-wrap"><table><thead><tr><th>Account</th><th>Time (UTC)</th><th>IP address</th><th>Browser</th></tr></thead>
+      <tbody>{% for event in events %}<tr><td>{{ event['email'] }}</td><td>{{ event['logged_in_at'][:19]|replace('T', ' ') }}</td><td>{{ event['ip_address'] }}</td><td class="activity-agent">{{ event['user_agent'] }}</td></tr>{% endfor %}</tbody>
+    </table></div>{% else %}<div class="empty"><span>↗</span><h3>No activity yet</h3><p>Successful sign-ins will appear here.</p></div>{% endif %}
+  </section>
+</main>
+{% endblock %}

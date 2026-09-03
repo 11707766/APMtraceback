@@ -36,6 +36,9 @@ app.config.update(
     SECRET_KEY=os.getenv("SECRET_KEY", "dev-only-change-me"),
     DATABASE=str(DATABASE),
     RESET_TOKEN_HOURS=1,
+    ACTIVITY_VIEWER_EMAILS=frozenset(
+        email.strip().lower() for email in os.getenv("ACTIVITY_VIEWER_EMAILS", "").split(",") if email.strip()
+    ),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
@@ -76,6 +79,15 @@ def init_db():
             token TEXT NOT NULL UNIQUE,
             expires_at TEXT NOT NULL,
             used INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS login_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            email TEXT NOT NULL,
+            ip_address TEXT NOT NULL,
+            user_agent TEXT NOT NULL,
+            logged_in_at TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS change_requests (
@@ -122,6 +134,33 @@ def login_required(view):
         return view(**kwargs)
 
     return wrapped_view
+
+
+def is_activity_viewer():
+    return g.user is not None and g.user["email"].lower() in app.config["ACTIVITY_VIEWER_EMAILS"]
+
+
+def activity_viewer_required(view):
+    @wraps(view)
+    def wrapped_view(**kwargs):
+        if not is_activity_viewer():
+            abort(403)
+        return view(**kwargs)
+
+    return wrapped_view
+
+
+@app.context_processor
+def add_template_context():
+    return {"is_activity_viewer": is_activity_viewer()}
+
+
+def log_successful_login(user):
+    get_db().execute(
+        "INSERT INTO login_events (user_id, email, ip_address, user_agent, logged_in_at) VALUES (?, ?, ?, ?, ?)",
+        (user["id"], user["email"], request.remote_addr or "unknown", request.user_agent.string[:500], datetime.now(UTC).isoformat()),
+    )
+    get_db().commit()
 
 
 def send_email(recipient, subject, body):
@@ -202,6 +241,7 @@ def login():
             session.clear()
             session["user_id"] = user["id"]
             session["csrf_token"] = secrets.token_urlsafe(32)
+            log_successful_login(user)
             next_url = request.args.get("next", "")
             return redirect(next_url if next_url.startswith("/") and not next_url.startswith("//") else url_for("dashboard"))
         flash("Email or password is incorrect.", "error")
@@ -242,6 +282,16 @@ def register():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+@app.route("/activity")
+@login_required
+@activity_viewer_required
+def activity():
+    events = get_db().execute(
+        "SELECT email, ip_address, user_agent, logged_in_at FROM login_events ORDER BY logged_in_at DESC LIMIT 200"
+    ).fetchall()
+    return render_template("activity.html", events=events)
 
 
 @app.route("/forgot-password", methods=("GET", "POST"))

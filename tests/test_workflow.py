@@ -14,6 +14,7 @@ class WorkflowTest(unittest.TestCase):
             DATABASE=str(Path(self.temp_dir.name) / "test.db"),
             SECRET_KEY="test-secret",
             SERVER_NAME="localhost",
+            ACTIVITY_VIEWER_EMAILS=frozenset({"dev@example.com"}),
         )
         with app.app_context():
             init_db()
@@ -54,6 +55,9 @@ class WorkflowTest(unittest.TestCase):
         self.register("Observer", "observer@example.com", "tester")
 
         self.assertIn(b"Developer workspace", self.login("dev@example.com").data)
+        activity = self.client.get("/activity")
+        self.assertIn(b"Successful sign-ins", activity.data)
+        self.assertIn(b"dev@example.com", activity.data)
         changed_password = self.post("/account/password", {"password": "ChangedPassword123"})
         self.assertIn(b"Password updated", changed_password.data)
         self.post("/logout", {})
@@ -106,6 +110,7 @@ class WorkflowTest(unittest.TestCase):
         observer_dashboard = self.login("observer@example.com")
         self.assertIn(b"SIG-CAN-08", observer_dashboard.data)
         self.assertEqual(self.client.get("/requests/1").status_code, 200)
+        self.assertEqual(self.client.get("/activity").status_code, 403)
 
         self.post("/logout", {})
         self.login("dev@example.com", "ChangedPassword123")

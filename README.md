@@ -35,6 +35,10 @@ Copy `.env.example` to a new `.env` file. For reliable delivery on Render, set `
 
 After signing in, use the password button in the dashboard header to set a new password. This is available only to the signed-in user and does not require the old password.
 
+## Sign-in activity
+
+Set `ACTIVITY_VIEWER_EMAILS` to a comma-separated list of authorized work emails. Successful sign-ins are recorded with account email, UTC timestamp, IP address, and browser information; authorized viewers can open the activity icon in the dashboard header.
+
 ## Deploy for any network
 
 The included `render.yaml` deploys the app on Render's free compute plan with Gunicorn and HTTPS session cookies. In Render, create a new Blueprint from this GitHub repository. Render supplies a public address similar to `https://apmcontrol.onrender.com`.
