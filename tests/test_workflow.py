@@ -46,6 +46,21 @@ class WorkflowTest(unittest.TestCase):
     def admin_login(self, email, password="Password123"):
         return self.post("/admin/login", {"email": email, "password": password})
 
+    def test_bootstrap_password_is_reapplied(self):
+        app.config.update(
+            ADMIN_BOOTSTRAP_EMAIL="admin@example.com",
+            ADMIN_BOOTSTRAP_PASSWORD="FirstPassword123",
+        )
+        with app.app_context():
+            init_db()
+        self.assertIn(b"Developer workspace", self.admin_login("admin@example.com", "FirstPassword123").data)
+
+        self.post("/logout", {})
+        app.config["ADMIN_BOOTSTRAP_PASSWORD"] = "SecondPassword123"
+        with app.app_context():
+            init_db()
+        self.assertIn(b"Developer workspace", self.admin_login("admin@example.com", "SecondPassword123").data)
+
     @patch.dict("os.environ", {"RESEND_API_KEY": "test-key", "RESEND_FROM_EMAIL": "APM <no-reply@example.com>"}, clear=True)
     @patch("app.urlopen")
     def test_resend_is_used_when_configured(self, mock_urlopen):

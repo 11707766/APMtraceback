@@ -110,8 +110,7 @@ def init_db():
             db.execute(f"ALTER TABLE change_requests ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
     bootstrap_email = app.config["ADMIN_BOOTSTRAP_EMAIL"]
     bootstrap_password = app.config["ADMIN_BOOTSTRAP_PASSWORD"]
-    bootstrap_complete = db.execute("SELECT 1 FROM app_settings WHERE key = 'admin_bootstrap_complete'").fetchone()
-    if bootstrap_email and len(bootstrap_password) >= 8 and not bootstrap_complete:
+    if bootstrap_email and len(bootstrap_password) >= 8:
         user = db.execute("SELECT id FROM users WHERE email = ?", (bootstrap_email,)).fetchone()
         if user:
             db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(bootstrap_password), user["id"]))
@@ -120,7 +119,6 @@ def init_db():
                 "INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
                 ("Administrator", bootstrap_email, generate_password_hash(bootstrap_password), "developer", datetime.now(UTC).isoformat()),
             )
-        db.execute("INSERT INTO app_settings (key, value) VALUES ('admin_bootstrap_complete', '1')")
     db.commit()
 
 
