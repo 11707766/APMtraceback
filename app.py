@@ -244,6 +244,12 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/forgot-password", methods=("GET", "POST"))
+def forgot_password_redirect():
+    flash("Sign in to change your password from the dashboard.", "error")
+    return redirect(url_for("login"))
+
+
 @app.route("/account/password", methods=("GET", "POST"))
 @login_required
 def change_password():

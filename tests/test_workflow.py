@@ -113,7 +113,8 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn(b"Request SIG-CAN-08 deleted", deleted.data)
         self.assertNotIn(b"SIG-CAN-08</strong>", deleted.data)
 
-        self.assertEqual(self.client.get("/forgot-password").status_code, 404)
+        forgot_password = self.client.get("/forgot-password", follow_redirects=True)
+        self.assertIn(b"Sign in to change your password", forgot_password.data)
 
 
 if __name__ == "__main__":
