@@ -25,10 +25,34 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+except ImportError:
+    psycopg = None
+    dict_row = None
+
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 DATABASE = Path(os.getenv("DATABASE_PATH", BASE_DIR / "amp.db"))
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+
+class PostgresDatabase:
+    def __init__(self, database_url):
+        if psycopg is None:
+            raise RuntimeError("DATABASE_URL requires psycopg. Install dependencies from requirements.txt.")
+        self.connection = psycopg.connect(database_url, row_factory=dict_row)
+
+    def execute(self, query, parameters=()):
+        return self.connection.execute(query.replace("?", "%s"), parameters)
+
+    def commit(self):
+        self.connection.commit()
+
+    def close(self):
+        self.connection.close()
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
@@ -50,9 +74,12 @@ app.config.update(
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(app.config["DATABASE"])
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON")
+        if DATABASE_URL:
+            g.db = PostgresDatabase(DATABASE_URL)
+        else:
+            g.db = sqlite3.connect(app.config["DATABASE"])
+            g.db.row_factory = sqlite3.Row
+            g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
 
 
@@ -64,6 +91,8 @@ def close_db(_error=None):
 
 
 def init_db():
+    if DATABASE_URL:
+        return
     db = get_db()
     db.executescript(
         """
@@ -299,7 +328,7 @@ def register():
                 db.commit()
                 flash("Account created. You can now sign in.", "success")
                 return redirect(url_for("login"))
-            except sqlite3.IntegrityError:
+            except (sqlite3.IntegrityError, psycopg.errors.UniqueViolation if psycopg else sqlite3.IntegrityError):
                 error = "An account with this email already exists."
         flash(error, "error")
     return render_template("register.html")
@@ -456,15 +485,16 @@ def new_request():
                 """INSERT INTO change_requests
                 (requirement_signal_id, function_name, previous_value, new_value, developer_name, developer_id,
                  tester_name, tester_email, reason, priority, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
                 (
                     values["requirement_signal_id"], values["function_name"], values["previous_value"],
                     values["new_value"], g.user["name"], g.user["id"], values["tester_name"],
                     values["tester_email"], values["reason"], values["priority"], now, now,
                 ),
             )
+            request_id = cursor.fetchone()["id"]
             db.commit()
-            change_request = db.execute("SELECT * FROM change_requests WHERE id = ?", (cursor.lastrowid,)).fetchone()
+            change_request = db.execute("SELECT * FROM change_requests WHERE id = ?", (request_id,)).fetchone()
             subject, body = request_email(change_request)
             sent, status = send_email(change_request["tester_email"], subject, body)
             db.execute("UPDATE change_requests SET notification_status = ? WHERE id = ?", (status, change_request["id"]))
