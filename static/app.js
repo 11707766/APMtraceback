@@ -28,9 +28,18 @@ function go(route) {
 }
 
 async function loadData() {
-  const { data: profile, error: profileError } = await client.from("profiles").select("id, name, role, email").maybeSingle();
-  if (profileError) throw profileError;
-  if (!profile) throw new Error("Your account setup is incomplete. Please create your account again.");
+  let { data: profile, error: profileError } = await client.from("profiles").select("id, name, role, email").maybeSingle();
+  if (profileError && profileError.code !== "PGRST116") throw profileError;
+  if (!profile) {
+    const { data, error } = await client.from("profiles").insert({
+      id: state.user.id,
+      name: state.user.user_metadata.name,
+      email: state.user.email,
+      role: state.user.user_metadata.role,
+    }).select("id, name, role, email").single();
+    if (error) throw error;
+    profile = data;
+  }
   state.profile = profile;
   const { data, error } = await client.from("change_requests").select("*").order("created_at", { ascending: false });
   if (error) throw error;

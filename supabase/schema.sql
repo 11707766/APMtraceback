@@ -27,6 +27,7 @@ create table public.change_requests (
 alter table public.profiles enable row level security;
 alter table public.change_requests enable row level security;
 create policy "Authenticated users can view profiles" on public.profiles for select to authenticated using (true);
+create policy "Users can create their own profile" on public.profiles for insert to authenticated with check (id = auth.uid());
 create policy "Authenticated users can view requests" on public.change_requests for select to authenticated using (true);
 
 create function public.create_profile() returns trigger language plpgsql security definer set search_path = public as $$
