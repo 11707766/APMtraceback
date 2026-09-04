@@ -28,8 +28,9 @@ function go(route) {
 }
 
 async function loadData() {
-  const { data: profile, error: profileError } = await client.from("profiles").select("id, name, role, email").single();
+  const { data: profile, error: profileError } = await client.from("profiles").select("id, name, role, email").maybeSingle();
   if (profileError) throw profileError;
+  if (!profile) throw new Error("Your account setup is incomplete. Please create your account again.");
   state.profile = profile;
   const { data, error } = await client.from("change_requests").select("*").order("created_at", { ascending: false });
   if (error) throw error;
@@ -79,7 +80,12 @@ function renderAccount() {
 
 async function render() {
   if (!state.user) return location.hash === "#register" ? renderRegister() : renderAuth();
-  try { await loadData(); } catch (error) { state.error = error.message; return renderAuth(); }
+  try { await loadData(); } catch (error) {
+    await client.auth.signOut();
+    state.user = null;
+    state.error = error.message;
+    return location.hash === "#register" ? renderRegister() : renderAuth();
+  }
   const route = location.hash.replace(/^#/, "") || "dashboard";
   if (route === "new") return requestForm();
   if (route.startsWith("edit/")) return requestForm(state.requests.find((item) => item.id === route.slice(5)));
