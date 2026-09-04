@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>APM Change Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./static/styles.css">
+</head>
+<body class="auth-page">
+  <div id="notice" class="flash-stack" aria-live="polite"></div>
+  <section id="auth-view" class="auth-shell">
+    <aside class="auth-context"><a class="auth-brand" href="./"><span class="brand-mark">A</span> APM Change Control</a><div><p class="eyebrow">Engineering change control</p><h1>Every signal change, clearly handed over.</h1><p>One accountable path from developer request to tester decision.</p></div><p class="context-line"><span></span>Requirements · Signals · Validation</p></aside>
+    <main class="auth-panel"><div class="auth-form"><p class="eyebrow">Project access</p><h2 id="auth-title">Sign in to APM Change Control</h2><p id="auth-copy" class="muted">Use your registered project credentials.</p>
+      <form id="auth-form" class="form-stack"><label id="name-field" hidden>Full name<input id="name" autocomplete="name" placeholder="Your name"></label><label>Email address<input id="email" type="email" autocomplete="email" required placeholder="name@company.com"></label><label>Password<input id="password" type="password" autocomplete="current-password" required minlength="8" placeholder="At least 8 characters"></label><label id="role-field" hidden>Workspace role<select id="role"><option value="developer">Developer</option><option value="tester">Tester</option></select></label><button id="auth-submit" class="button primary wide" type="submit">Sign in</button></form>
+      <p class="auth-switch"><a id="auth-toggle" href="#">Create an account</a> <span id="auth-toggle-copy">if you are new to the project.</span></p><p class="auth-switch"><a id="forgot-password" href="#">Forgot password?</a></p>
+    </div></main>
+  </section>
+  <div id="app-view" hidden>
+    <header class="topbar"><a class="brand" href="./"><span class="brand-mark">A</span> APM Change Control</a><nav><span id="identity" class="identity"></span><button id="logout" class="icon-button" type="button" title="Sign out">↪</button></nav></header>
+    <main class="page"><div class="page-heading dashboard-heading"><div><p id="workspace-role" class="eyebrow"></p><h1>Change control overview</h1><p class="muted">Monitor requirement and signal changes through validation.</p></div><button id="new-request" class="button primary" type="button" hidden>+ New request</button></div>
+      <section class="metrics" aria-label="Request summary"><div class="metric primary-metric"><span class="metric-icon">#</span><div><small>Total requests</small><strong id="count-total">0</strong><em>All tracked changes</em></div></div><div class="metric"><span class="metric-icon">N</span><div><small>Awaiting review</small><strong id="count-new">0</strong><em>New submissions</em></div></div><div class="metric"><span class="metric-icon review-icon">↻</span><div><small>In review</small><strong id="count-review">0</strong><em>Testing in progress</em></div></div><div class="metric"><span class="metric-icon approved-icon">✓</span><div><small>Approved</small><strong id="count-approved">0</strong><em>Validated changes</em></div></div></section>
+      <section class="table-section"><div class="section-title"><div><p class="eyebrow">Live register</p><h2>Recent change requests</h2></div><span id="record-count" class="record-count">0 records</span></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Function</th><th>Developer</th><th>Tester</th><th>Priority</th><th>Status</th><th>Created</th><th>Update</th></tr></thead><tbody id="requests"></tbody></table></div><div id="empty" class="empty"><span>↗</span><h3>No requests yet</h3><p>New requests will appear here.</p></div></section>
+    </main>
+  </div>
+  <dialog id="request-dialog"><form id="request-form" class="request-form"><div class="section-title"><h2>New change request</h2><button id="close-dialog" class="icon-button" type="button" title="Close">×</button></div><section><div class="section-number">01</div><div class="form-content"><div class="field-grid"><label>Requirement / Signal ID<input name="requirement_signal_id" required></label><label>Function name<input name="function_name" required></label></div><div class="comparison-inputs"><label class="value-field previous">Previous value<textarea name="previous_value" rows="5" required></textarea></label><div class="compare-arrow">→</div><label class="value-field updated">New value<textarea name="new_value" rows="5" required></textarea></label></div></div></section><section><div class="section-number">02</div><div class="form-content"><div class="field-grid"><label>Tester name<input name="tester_name" required></label><label>Tester email<input name="tester_email" type="email" required></label></div><label>Reason for change<textarea name="reason" rows="4" required></textarea></label><label>Priority<select name="priority"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select></label></div></section><div class="form-actions"><button class="button primary" type="submit">Submit request</button></div></form></dialog>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./static/supabase-config.js"></script>
+  <script src="./static/app.js"></script>
+</body>
+</html>
