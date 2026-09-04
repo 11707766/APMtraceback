@@ -10,6 +10,8 @@ if (!configured) {
   const client = window.supabase.createClient(config.url, config.anonKey);
   let profile;
   let signUp = false;
+  let isSubmitting = false;
+  let signupRetryAt = 0;
   const authView = document.querySelector("#auth-view");
   const appView = document.querySelector("#app-view");
   const setAuthMode = () => {
@@ -50,10 +52,27 @@ if (!configured) {
   };
   document.querySelector("#auth-toggle").addEventListener("click", (event) => { event.preventDefault(); signUp = !signUp; setAuthMode(); });
   document.querySelector("#auth-form").addEventListener("submit", async (event) => {
-    event.preventDefault(); const email = document.querySelector("#email").value; const password = document.querySelector("#password").value;
+    event.preventDefault();
+    if (isSubmitting) return;
+    if (signUp && Date.now() < signupRetryAt) return notice("A confirmation email was recently sent. Check your inbox before requesting another.");
+    isSubmitting = true;
+    const submitButton = document.querySelector("#auth-submit");
+    submitButton.disabled = true;
+    const email = document.querySelector("#email").value; const password = document.querySelector("#password").value;
     const result = signUp ? await client.auth.signUp({ email, password, options: { data: { full_name: document.querySelector("#name").value, role: document.querySelector("#role").value } } }) : await client.auth.signInWithPassword({ email, password });
-    if (result.error) return notice(result.error.message, true);
-    if (signUp && !result.data.session) return notice("Check your email to confirm your account, then sign in.");
+    isSubmitting = false;
+    submitButton.disabled = false;
+    if (result.error) {
+      if (/security purposes|only request/i.test(result.error.message)) {
+        signupRetryAt = Date.now() + 60_000;
+        return notice("A confirmation email was recently sent. Check your inbox before requesting another.");
+      }
+      return notice(result.error.message, true);
+    }
+    if (signUp && !result.data.session) {
+      signupRetryAt = Date.now() + 60_000;
+      return notice("Check your email to confirm your account, then sign in.");
+    }
     showApp(result.data.user);
   });
   document.querySelector("#forgot-password").addEventListener("click", async (event) => { event.preventDefault(); const email = document.querySelector("#email").value; if (!email) return notice("Enter your email address first.", true); const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: window.location.href }); notice(error ? error.message : "Password reset email sent.", Boolean(error)); });
