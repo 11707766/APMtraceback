@@ -78,8 +78,6 @@ function renderAccount() {
 }
 
 async function render() {
-  state.notice = "";
-  state.error = "";
   if (!state.user) return location.hash === "#register" ? renderRegister() : renderAuth();
   try { await loadData(); } catch (error) { state.error = error.message; return renderAuth(); }
   const route = location.hash.replace(/^#/, "") || "dashboard";
