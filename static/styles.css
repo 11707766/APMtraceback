@@ -14,6 +14,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { color-scheme: light; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 "DM Sans", sans-serif; }
 h1, h2, h3, p { margin-top: 0; }
